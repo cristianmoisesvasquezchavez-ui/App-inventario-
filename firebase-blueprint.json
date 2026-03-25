@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A product in the inventory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier or code for the product." },
+        "name": { "type": "string", "description": "Name of the product." },
+        "category": { "type": "string", "description": "Category of the product (e.g., Maquillaje, Joyería, Skincare)." },
+        "stockActual": { "type": "number", "description": "Current stock level." },
+        "stockMinimo": { "type": "number", "description": "Minimum stock level for alerts." },
+        "location": { "type": "string", "description": "Physical location in the store." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp." },
+        "updatedBy": { "type": "string", "description": "UID of the user who last updated the product." }
+      },
+      "required": ["id", "name", "category", "stockActual", "stockMinimo"]
+    },
+    "User": {
+      "title": "User",
+      "description": "An authorized user of the system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID." },
+        "email": { "type": "string", "format": "email", "description": "User email address." },
+        "role": { "type": "string", "enum": ["admin", "employee"], "description": "User role." }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of inventory products."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of authorized users."
+    }
+  }
+}

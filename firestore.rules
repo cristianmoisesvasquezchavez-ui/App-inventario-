@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: products
+    // Document ID: productId
+    // Fields:
+    //   - id: string (required) - Product code
+    //   - name: string (required) - Product name
+    //   - category: string (required) - Category
+    //   - stockActual: number (required) - Current stock
+    //   - stockMinimo: number (required) - Minimum stock
+    //   - location: string (optional) - Store location
+    //   - updatedAt: timestamp (optional) - Last update
+    //   - updatedBy: string (optional) - User UID
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required) - User email
+    //   - role: string (required, enum: ['admin', 'employee']) - User role
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUserAuthorized() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        (request.auth.token.email == "cristianmoisesvasquezchavez@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isValidProduct(data) {
+      let allowedFields = ['id', 'name', 'category', 'stockActual', 'stockMinimo', 'location', 'updatedAt', 'updatedBy'];
+      return data.keys().hasAll(['id', 'name', 'category', 'stockActual', 'stockMinimo']) &&
+             data.keys().hasOnly(allowedFields) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 150 &&
+             data.category is string && data.category.size() > 0 && data.category.size() < 50 &&
+             data.stockActual is number &&
+             data.stockMinimo is number &&
+             (!('location' in data) || (data.location is string && data.location.size() < 100)) &&
+             (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy == request.auth.uid));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.keys().hasOnly(['uid', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 100 &&
+             data.role in ['admin', 'employee'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /products/{productId} {
+      allow read: if isUserAuthorized();
+      allow create: if isAdmin() && isValidProduct(request.resource.data);
+      allow update: if isUserAuthorized() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isUserAuthorized();
+      // Allow the first admin to create their own record, or an existing admin to create others
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (
+        (request.auth.token.email == "cristianmoisesvasquezchavez@gmail.com" && 
+         request.auth.token.email_verified == true && 
+         request.resource.data.role == 'admin' && 
+         request.resource.data.uid == request.auth.uid &&
+         userId == request.auth.uid) ||
+        (isAdmin() && request.resource.data.uid == userId)
+      );
+      allow update: if isAdmin() && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Inventario Cosméticos y Fantasía",
+  "description": "Sistema de gestión de inventario en tiempo real con alertas de stock bajo y login seguro.",
+  "requestFramePermissions": []
+}
